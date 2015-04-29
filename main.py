@@ -4,19 +4,49 @@ __author__ = 'zhongziyuan'
 import json
 from math import sqrt
 from sys import maxint
+from util.leancloud import LeancloudHandler
 
 
 class InfoGetter:
 
-    def __init__(self, dict_file):
-        self.judge_dict = InfoGetter.load_dict(dict_file)
+    def __init__(self, dict_file=None):
+        if None != dict_file:
+            self.judge_dict = InfoGetter.load_dict_local(dict_file)
+        else:
+            self.judge_dict = InfoGetter.load_dict_online()
 
     @staticmethod
-    def load_dict(dict_file):
+    def load_dict_local(dict_file):
         f = open(dict_file, 'r')
         content = f.read()
         f.close()
         res = json.loads(content, encoding="utf-8")
+        return res
+
+    @staticmethod
+    def load_dict_online():
+        res = {}
+        data = LeancloudHandler().get_all('app_dict')
+        for d in data:
+            if d[u'label'] not in res.keys():
+                res[d[u'label']] = {}
+                yes = {}
+                no = {}
+                if d[u'degree'] > 0:
+                    yes[d[u'app']] = 1
+                    no[d[u'app']] = 0
+                else:
+                    yes[d[u'app']] = 0
+                    no[d[u'app']] = 1
+                res[d[u'label']]['yes'] = yes
+                res[d[u'label']]['no'] = no
+            else:
+                if d[u'degree'] > 0:
+                    res[d[u'label']]['yes'][d[u'app']] = 1
+                    res[d[u'label']]['no'][d[u'app']] = 0
+                else:
+                    res[d[u'label']]['yes'][d[u'app']] = 0
+                    res[d[u'label']]['no'][d[u'app']] = 1
         return res
 
     def get_labels(self, info):
@@ -25,12 +55,13 @@ class InfoGetter:
             return {}
         res = {}
         for label, classes in self.judge_dict.items():
-            label_class = self.get_class(classes, info)
+            label_class = InfoGetter.get_class(classes, info)
             res[label] = label_class
 
         return res
 
-    def get_class(self, classes, info):
+    @staticmethod
+    def get_class(classes, info):
         info_vec = {}
         degrees = classes.values()[0].keys()
         for app in degrees:
@@ -58,5 +89,15 @@ class InfoGetter:
 
 
 if __name__ == '__main__':
-    i = InfoGetter("dict.json")
+    i = InfoGetter()
     print i.get_labels(["com.kplus.car", "cn.buding.martin"])
+
+    # r = InfoGetter().load_dict_online()
+    # for rk, rv in r.items():
+    #     print ''
+    #     print rk
+    #     print '-------------------------------------------------------'
+    #     for kk, vv in rv.items():
+    #         print '-----' + kk + ":"
+    #         for kkk, vvv in vv.items():
+    #             print kkk + ":" + str(vvv)
